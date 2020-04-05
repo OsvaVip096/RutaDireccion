@@ -5,9 +5,11 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
+import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -16,6 +18,8 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
 
 import com.google.android.gms.common.api.ResolvableApiException;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationAvailability;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
@@ -31,6 +35,8 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -39,6 +45,8 @@ import java.util.Map;
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
+
+    private FusedLocationProviderClient fusedLocationProviderClient;
 
     private static final int PERMISSIONS_REQUEST_CODE = 1001;
     private static final int MY_PERMISSION_REQUEST_API = 1002;
@@ -249,6 +257,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         });
     }
 
+    Boolean actualPosition = true;
+    JSONObject jsonObject;
+    Double longitudOrigen, latitudOrigen;
+
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
@@ -262,9 +274,36 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
-        // Add a marker in Sydney and move the camera
-        LatLng sydney = new LatLng(-34, 151);
-        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
+        mMap.setMyLocationEnabled(true);
+
+        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
+
+        fusedLocationProviderClient.getLastLocation().addOnSuccessListener(
+                this,
+                new OnSuccessListener<Location>() {
+                    @Override
+                    public void onSuccess(Location location) {
+                        if (location != null) {
+                            latitudOrigen = location.getLatitude();
+                            longitudOrigen = location.getLongitude();
+                            actualPosition = false;
+
+                            LatLng miPosicion = new LatLng(latitudOrigen, longitudOrigen);
+
+                            mMap.addMarker(new MarkerOptions()
+                                    .position(miPosicion)
+                                    .title("Mi posición actual")
+                                    .snippet("Origen"));
+                        } else {
+                            Toast.makeText(
+                                    MapsActivity.this,
+                                    "No se pudo obtener su ubicación...",
+                                    Toast.LENGTH_LONG
+                            ).show();
+                        }
+                    }
+                }
+        );
+        //mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
     }
 }
