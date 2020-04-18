@@ -5,10 +5,12 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -17,9 +19,14 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.android.gms.common.api.ResolvableApiException;
 import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationAvailability;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
@@ -29,12 +36,17 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.maps.android.PolyUtil;
 
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
@@ -294,6 +306,42 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                     .position(miPosicion)
                                     .title("Mi posición actual")
                                     .snippet("Origen"));
+
+                            CameraPosition cameraPosition = new CameraPosition.Builder()
+                                    .target(new LatLng(latitudOrigen, longitudOrigen))
+                                    .zoom(14)
+                                    .build();
+                            mMap.animateCamera(
+                                    CameraUpdateFactory.newCameraPosition(cameraPosition)
+                            );
+
+                            String url =
+                                    "https://maps.googleapis.com/maps/api/directions/json?origin=" +
+                                            latitudOrigen + "," + longitudOrigen +
+                                            "&destination=20.1394083,-101.1507207" +
+                                            "&key=AIzaSyC2-KpjjCwUXSpCLWh4mt4KRKFEPtGz4Rs";
+
+                            RequestQueue queue = Volley.newRequestQueue(MapsActivity.this);
+                            StringRequest stringRequest = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
+                                @Override
+                                public void onResponse(String response) {
+                                    try {
+                                        jsonObject = new JSONObject(response);
+                                        TrazarRuta(jsonObject);
+
+                                        Log.i("JSONruta: ", response);
+                                    } catch (JSONException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            }, new Response.ErrorListener() {
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+
+                                }
+                            });
+
+                            queue.add(stringRequest);
                         } else {
                             Toast.makeText(
                                     MapsActivity.this,
@@ -304,6 +352,32 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     }
                 }
         );
-        //mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
+        // Coordenadas ITSUR: 20.1394083, -101.1507207
+    }
+
+    private void TrazarRuta(JSONObject jso) {
+        JSONArray jRoutes;
+        JSONArray jLegs;
+        JSONArray jSteps;
+
+        try {
+            jRoutes = jso.getJSONArray("routes");
+            for (int i = 0; i < jRoutes.length(); i++) {
+                jLegs = ((JSONObject) (jRoutes.get(i))).getJSONArray("legs");
+
+                for (int j = 0; j < jLegs.length(); j++) {
+                    jSteps = ((JSONObject) jLegs.get(j)).getJSONArray("steps");
+
+                    for (int k = 0; k < jSteps.length(); k++) {
+                        String polyline = "" + ((JSONObject) ((JSONObject) jSteps.get(k)).get("polyline")).get("points");
+                        Log.i("END", "" + polyline);
+                        List<LatLng> list = PolyUtil.decode(polyline);
+                        mMap.addPolyline(new PolylineOptions().addAll(list).color(Color.GREEN).width(5));
+                    }
+                }
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
     }
 }
