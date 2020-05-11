@@ -273,6 +273,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     JSONObject jsonObject;
     Double longitudOrigen, latitudOrigen;
 
+    LatLng origen, destino;
+    ArrayList markerPoints = new ArrayList();
+
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
@@ -302,10 +305,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                             LatLng miPosicion = new LatLng(latitudOrigen, longitudOrigen);
 
-                            mMap.addMarker(new MarkerOptions()
+                            /*mMap.addMarker(new MarkerOptions()
                                     .position(miPosicion)
                                     .title("Mi posición actual")
-                                    .snippet("Origen"));
+                                    .snippet("Origen"));*/
 
                             CameraPosition cameraPosition = new CameraPosition.Builder()
                                     .target(new LatLng(latitudOrigen, longitudOrigen))
@@ -314,34 +317,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             mMap.animateCamera(
                                     CameraUpdateFactory.newCameraPosition(cameraPosition)
                             );
-
-                            String url =
-                                    "https://maps.googleapis.com/maps/api/directions/json?origin=" +
-                                            latitudOrigen + "," + longitudOrigen +
-                                            "&destination=20.1394083,-101.1507207" +
-                                            "&key=AIzaSyC2-KpjjCwUXSpCLWh4mt4KRKFEPtGz4Rs";
-
-                            RequestQueue queue = Volley.newRequestQueue(MapsActivity.this);
-                            StringRequest stringRequest = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
-                                @Override
-                                public void onResponse(String response) {
-                                    try {
-                                        jsonObject = new JSONObject(response);
-                                        TrazarRuta(jsonObject);
-
-                                        Log.i("JSONruta: ", response);
-                                    } catch (JSONException e) {
-                                        e.printStackTrace();
-                                    }
-                                }
-                            }, new Response.ErrorListener() {
-                                @Override
-                                public void onErrorResponse(VolleyError error) {
-
-                                }
-                            });
-
-                            queue.add(stringRequest);
                         } else {
                             Toast.makeText(
                                     MapsActivity.this,
@@ -353,6 +328,65 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
         );
         // Coordenadas ITSUR: 20.1394083, -101.1507207
+        mMap.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
+            @Override
+            public void onMapLongClick(LatLng latLng) {
+                if (markerPoints.size() > 1) {
+                    markerPoints.clear();
+                    mMap.clear();
+                }
+
+                markerPoints.add(latLng);
+
+                MarkerOptions options = new MarkerOptions();
+                options.position(latLng);
+
+                if (markerPoints.size() == 1) {
+                    mMap.addMarker(new MarkerOptions()
+                            .position(latLng)
+                            .title("Marcador Origen")
+                            .snippet("Origen"));
+                } else if (markerPoints.size() == 2) {
+                    mMap.addMarker(new MarkerOptions()
+                            .position(latLng)
+                            .title("Marcador Destino")
+                            .snippet("Destino"));
+                }
+
+                if (markerPoints.size() >= 2) {
+                    origen = (LatLng) markerPoints.get(0);
+                    destino = (LatLng) markerPoints.get(1);
+
+                    String url =
+                            "https://maps.googleapis.com/maps/api/directions/json?origin=" +
+                                    origen.latitude + "," + origen.longitude +
+                                    "&destination=" + destino.latitude + "," + destino.longitude +
+                                    "&key=AIzaSyC2-KpjjCwUXSpCLWh4mt4KRKFEPtGz4Rs";
+
+                    RequestQueue queue = Volley.newRequestQueue(MapsActivity.this);
+                    StringRequest stringRequest = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
+                        @Override
+                        public void onResponse(String response) {
+                            try {
+                                jsonObject = new JSONObject(response);
+                                TrazarRuta(jsonObject);
+
+                                Log.i("JSONruta: ", response);
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }, new Response.ErrorListener() {
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
+
+                        }
+                    });
+
+                    queue.add(stringRequest);
+                }
+            }
+        });
     }
 
     private void TrazarRuta(JSONObject jso) {
