@@ -4,6 +4,10 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
+    <!--
+        Dentro del LinearLayout se encuentra el fragmento de Google Maps para mostrar el mapa
+        en la actividad principal.
+    -->
     <fragment xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:map="http://schemas.android.com/apk/res-auto"
         xmlns:tools="http://schemas.android.com/tools"
