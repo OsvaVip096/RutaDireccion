@@ -11,6 +11,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -54,10 +56,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, View.OnClickListener {
 
     /* Variable utilizada para interactuar con Google Maps y establecer funciones. */
     private GoogleMap mMap;
+
+    private Button btnUbicacionDispositivo;
 
     /* Variable cuya funcion es obtner nuestra localización. */
     private FusedLocationProviderClient fusedLocationProviderClient;
@@ -91,10 +95,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             .findFragmentById(R.id.map);
             mapFragment.getMapAsync(this);
         }
+
+        btnUbicacionDispositivo = findViewById(R.id.btnUbicacionDispositivo);
+        btnUbicacionDispositivo.setOnClickListener(this);
     }
 
     /**
      * Verifica si los permisos han sido concedidos por el usuario.
+     *
      * @return Regresa un valor para cada permiso, si fue permitido o negado.
      */
     public boolean checkAndRequestPermissions() {
@@ -124,13 +132,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     /**
      * Entrega un mensaje al usuario de los permisos que son requeridos para la funcionalidad de
      * la app.
-     * @param title Título del mensaje.
-     * @param msg Mensaje.
-     * @param positiveLavel Mensaje positivo de aprobación.
+     *
+     * @param title           Título del mensaje.
+     * @param msg             Mensaje.
+     * @param positiveLavel   Mensaje positivo de aprobación.
      * @param positiveOnClick Evento onClick si acepto el servicio.
-     * @param negativeLavel Mensaje negativo de aprobación.
+     * @param negativeLavel   Mensaje negativo de aprobación.
      * @param negativeOnClick Evento onClick si negó el servicio.
-     * @param isCancelAble Indicador si el mensaje contiene un botón de cancelar respuesta.
+     * @param isCancelAble    Indicador si el mensaje contiene un botón de cancelar respuesta.
      * @return Return de cada permiso, si fue permitido o negado.
      */
     public AlertDialog showDialog(String title, String msg, String positiveLavel,
@@ -152,8 +161,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     /**
      * Resultado de cada permiso para la App.
-     * @param requestCode Código único del permiso.
-     * @param permissions Tipo de permiso.
+     *
+     * @param requestCode  Código único del permiso.
+     * @param permissions  Tipo de permiso.
      * @param grantResults Resultado otorgado al permiso.
      */
     @Override
@@ -308,6 +318,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     /**
      * Método que manipula la funcionalidad de Google Maps.
+     *
      * @param googleMap Variable perteneciente a Google Map.
      */
     @Override
@@ -359,7 +370,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         );
 
         /* OnLongClickListener se encarga de agregar los marcadores en el sitio donde el
-        * usuario quiere obtener la ruta entre dos puntos. */
+         * usuario quiere obtener la ruta entre dos puntos. */
         mMap.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
             /**
              * Obtiene la Longitud/Latitud del punto donde esta agregando el marcador.
@@ -394,7 +405,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     destino = (LatLng) markerPoints.get(1); // Latitud/Longitud marcador destino.
 
                     /* URL que utiliza la Longitud/Latitud de los puntos de origen y destino
-                    * y utiliza la API Key. */
+                     * y utiliza la API Key. */
                     String url =
                             "https://maps.googleapis.com/maps/api/directions/json?origin=" +
                                     origen.latitude + "," + origen.longitude +
@@ -432,6 +443,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      * Método encargado de trazar la ruta de acuerdo con los datos obtenidos del JSONObject,
      * lo interpreta para que el mapa realize el dibujado de la ruta más corta entre ambos
      * marcadores.
+     *
      * @param jso JSON con los datos de la ruta.
      */
     private void TrazarRuta(JSONObject jso) {
@@ -458,5 +470,48 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } catch (JSONException e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public void onClick(View v) {
+        if (v.equals(btnUbicacionDispositivo)) {
+            mMap.clear();
+            markerPoints.clear();
+        }
+
+        /* Habilita la localización de servicios mediante el proveedor de cliente actual. */
+        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
+
+        /* Obtiene nuestra última localización. */
+        fusedLocationProviderClient.getLastLocation().addOnSuccessListener(
+                this,
+                new OnSuccessListener<Location>() {
+                    @Override
+                    public void onSuccess(Location location) { // Localización correcta.
+                        if (location != null) {
+                            latitudOrigen = location.getLatitude(); // Altitud localización act.
+                            longitudOrigen = location.getLongitude(); // Longitud loc. actual.
+                            actualPosition = false;
+
+                            /* Posición actual del usuario, añade los datos de Latitud/Longitud. */
+                            LatLng miPosicion = new LatLng(latitudOrigen, longitudOrigen);
+
+                            markerPoints.add(miPosicion);
+
+                            mMap.addMarker(new MarkerOptions()
+                                    .position(miPosicion)
+                                    .title("Mi posición actual")
+                                    .snippet("Origen"));
+                        } else {
+                            /* Falló en obtener la ubicación del usuario. */
+                            Toast.makeText(
+                                    MapsActivity.this,
+                                    "No se pudo obtener su ubicación...",
+                                    Toast.LENGTH_LONG
+                            ).show();
+                        }
+                    }
+                }
+        );
     }
 }
